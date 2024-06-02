@@ -1,47 +1,47 @@
 package algorithm;
 
-import algorithm.utils.*;
+import com.github.servicenow.ds.stats.stl.SeasonalTrendLoess;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 public class WindowSTL {
-    private final static int coldStartPeriodNumber = 5;
+    private int period;
+    private int slidingWindow;
+    private double[] slidingWindowY;
+    public WindowSTL(int period, int slidingWindow) {
+        this.period = period;
+        this.slidingWindow = slidingWindow;
+    }
 
-    public WindowSTL(long[] time, double[] ts, int period, int slidingWindow) {
-        int trainTestSplit = coldStartPeriodNumber * period;
-
-        // input
-        List<Double> y = FormatUtil.doubleToList(ts);
-        WindowSTLUtil windowSTLModel = new WindowSTLUtil(period, slidingWindow);
-
-        // output
-        int size = y.size();
-        Map<String, double[]> results = new HashMap<>();
-        double[] trend = new double[size];
-        double[] seasonal = new double[size];
-        double[] residual = new double[size];
-
-        // cold start
-        List<Double> initY = y.subList(0, trainTestSplit);
-        windowSTLModel.initialize(initY);
-
-        // decompose
-        long begin = System.nanoTime();
-        Map<String, Double> res;
-        for (int i = trainTestSplit; i < y.size(); i++) {
-            res = windowSTLModel.decompose(y.get(i));
-            // record
-            trend[i] = res.get("trend");
-            seasonal[i] = res.get("seasonal");
-            residual[i] = res.get("residual");
+    public void initialize(List<Double> y) {
+        if (y.size() > slidingWindow) {
+            y = y.subList(y.size() - slidingWindow, y.size());
         }
-        long end = System.nanoTime();
-        double timeCost = (1.0 * (end - begin) / 1000000000);
+        slidingWindowY = convertDouble(y.toArray());
+    }
 
-        results.put("trend", trend);
-        results.put("seasonal", seasonal);
-        results.put("residual", residual);
+    public Map<String, Double> decompose(double yNew) {
+        double[] slidingWindowYNew = new double[slidingWindow];
+        System.arraycopy(slidingWindowY, 1, slidingWindowYNew, 0, slidingWindow - 1);
+        slidingWindowYNew[slidingWindow - 1] = yNew;
+        slidingWindowY = slidingWindowYNew;
+        Map<String, Double> result = new HashMap<>();
+        SeasonalTrendLoess.Builder builder = new SeasonalTrendLoess.Builder();
+        SeasonalTrendLoess smoother = builder.setPeriodic().setPeriodLength(period).setRobust().buildSmoother(slidingWindowY);
+        SeasonalTrendLoess.Decomposition stl = smoother.decompose();
+        result.put("trend", stl.getTrend()[slidingWindow - 1]);
+        result.put("seasonal", stl.getSeasonal()[slidingWindow - 1]);
+        result.put("residual", stl.getResidual()[slidingWindow - 1]);
+        return result;
+    }
+
+    private double[] convertDouble(Object[] x) {
+        double[] x_new = new double[x.length];
+        for (int i = 0; i < x.length; i++) {
+            x_new[i] = (double) x[i];
+        }
+        return x_new;
     }
 }

@@ -1,90 +1,147 @@
-import algorithm.*;
+import java.io.*;
 
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.util.Map;
-import java.util.Scanner;
+public class ExperimentReal {
+    private static final String INPUT_DIR = "";
+    private static final String OUTPUT_DIR = "";
+    // dataset
+    private static final String[] datasetFileList = {
+            "power_5241600.csv",
+            "voltage_22825440.csv",
+    };
 
-public class Experiment {
+    private static final String[] methodList = {
+            "TSDBSTL_Query",
+//            "TSDBSTL_Flush",
+//            "STL",
+//            "OneShotSTL",
+//            "OnlineSTL",
+//            "OneRoundSTL",
+//            "WindowSTL",
+//            "RobustSTL",
+//            "WindowRobustSTL",
+//            "FastRobustSTL",
+    };
 
-    public static double[] LoadData(String name, int size) throws Exception {
-        Scanner sc = new Scanner(new FileReader(name));
-        int idx = 0;
-        double[] rtn = new double[size];
-        while (sc.hasNextLine()) {
-            String line = sc.nextLine();
-            if (idx < size)
-                rtn[idx++] = Double.parseDouble(line);
-        }
-        return rtn;
+    public static void recordFlush(String string) throws Exception {
+        FileWriter fileWritter = new FileWriter(OUTPUT_DIR + "flush.txt", true);
+        BufferedWriter bw = new BufferedWriter(fileWritter);
+        bw.write(string);
+        bw.close();
     }
 
-    public static void OneShotSTLQuery(long[] time, double[] ts, int period, int shiftWindow, double lambda1, double lambda3, int maxIter, String f, String h, String g, int ratio, String name) throws Exception {
-        System.out.println("OneShotSTL");
-
-        long begin = System.nanoTime();
-        OneShotSTL oneShotSTL = new OneShotSTL(time, ts, period, shiftWindow, lambda1, lambda3, maxIter, f, h, g, ratio);
-        long end = System.nanoTime();
-
-        Map<String, double[]> results = oneShotSTL.get_decompose_results();
-
-        double timeCost = (1.0 * (end - begin) / 1000000000);
-        System.out.println(timeCost);
-
-        double[] seasonal = results.get("seasonal");
-        double[] trend = results.get("trend");
-        double[] residual = results.get("residual");
-
-//        System.out.println("seasonal");
-        FileWriter writer = new FileWriter("D:\\project\\python\\demo38_lsmdecomposition\\data\\seasonal" + name + ".txt");
-        String file_string = "";
-        for (int i = 5 * period; i < seasonal.length; ++i) {
-            file_string += seasonal[i] + "\n";
-        }
-        writer.write(file_string);
-        writer.flush();
-        writer.close();
-
-//        System.out.println("trend");
-        writer = new FileWriter("D:\\project\\python\\demo38_lsmdecomposition\\data\\trend" + name + ".txt");
-        file_string = "";
-        for (int i = 5 * period; i < trend.length; ++i) {
-            file_string += trend[i] + "\n";
-        }
-        writer.write(file_string);
-        writer.flush();
-        writer.close();
-
-        System.out.println("residual");
-        writer = new FileWriter("D:\\project\\python\\demo38_lsmdecomposition\\data\\residual" + name + ".txt");
-        file_string = "";
-        for (int i = 5 * period; i < residual.length; ++i) {
-            file_string += residual[i] + "\n";
-        }
-        writer.write(file_string);
-        writer.flush();
-        writer.close();
+    public static void recordQuery(String string) throws Exception {
+        FileWriter fileWritter = new FileWriter(OUTPUT_DIR + "query.txt", true);
+        BufferedWriter bw = new BufferedWriter(fileWritter);
+        bw.write(string);
+        bw.close();
     }
 
-    public static void WindowSTLQuery(long[] time, double[] ts, int period, int slidingWindow) {
-        System.out.println("WindowSTL");
-
-        WindowSTL windowSTLAlg = new WindowSTL(time, ts, period, slidingWindow);
+    public static double calThreshold(double[] ts) {
+        int maxLength = 0, curLength;
+        for (double value : ts) {
+            curLength = String.valueOf(value).replace(".", "").length();
+            if (curLength > maxLength)
+                maxLength = curLength;
+        }
+        return Math.pow(10, -maxLength);
     }
 
     public static void main(String[] args) throws Exception {
-        long[] time = new long[]{1};
-        int period = 12;
+        String recordType = "query";
+        for (String dataset : datasetFileList) {
+            String datasetName = dataset.split("_")[0];
 
-        double[] ts = LoadData("D:\\project\\python\\demo38_lsmdecomposition\\results\\syn1.txt", 300);
-//        OneShotSTLQuery(time, ts, period, 100, 0., 15., 20, "LS", "LS", "LS", 1, "1");
-        ts = LoadData("D:\\project\\python\\demo38_lsmdecomposition\\results\\syn2.txt", 300);
-        OneShotSTLQuery(time, ts, period, 100, 0., 4., 200, "LS", "LS", "LAD", 1, "2");
+            int period = datasetName.equals("power") ? 144 : 1440;
+            int dataSize = datasetName.equals("power") ? 1000000 : 10000000;
 
+            int initPeriodNum = 5;
+            int shiftWindow = 1000;  // 4OneShotSTL
+            int slidingWindow = 720;  // 4WindowSTL
 
-//        for (double i : ts)
-//            System.out.print(i + ",");
+            double epsilon = 1e-8, zeta = 1e-8, lambda = 1.0, thres;
+            int MAX_TS_SIZE = 40000010, MAX_PAGE_NUM = 100;
+            int MAX_PAGE_SIZE = datasetName.equals("power") ? 14400 : 144000;
+            double missingRate = 0.0;
+            double errorRate = 1.;
+            double errorRange = 1.;
 
-//        WindowSTLQuery(time, ts, period, 10);
+            // record
+            if (recordType.equals("flush")) {
+                recordFlush(datasetName + " mrate 0,1,2,3,4,5,6,7,8,9\n");
+//                recordFlush(datasetName + " scala 0.5m,1m,1.5m,2m,2.5m,3m,3.5m,4m,4.5m,5m\n");
+//                recordFlush(datasetName + " scala 2m,4m,6m,8m,10m,12m,14m,16m,18m,20m\n");
+//                recordFlush(datasetName + " psize 15k,30k,45k,60k,75k,90k,105k,120k,135k,150k\n");
+            } else {
+                recordQuery(datasetName + " mrate 0,1,2,3,4,5,6,7,8,9\n");
+//                recordQuery(datasetName + " psize 15k,30k,45k,60k,75k,90k,105k,120k,135k,150k\n");
+//                recordQuery(datasetName + " qsize 0.5m,1m,1.5m,2m,2.5m,3m,3.5m,4m,4.5m,5m\n");
+//                recordQuery(datasetName + " qsize 2m,4m,6m,8m,10m,12m,14m,16m,18m,20m\n");
+            }
+
+//            for (dataSize = 500000; dataSize <= 5000000; dataSize += 500000) {
+            for (missingRate = 1; missingRate <= 10; missingRate += 1) {
+//            int MAX_PAGE_SIZE_BASE = MAX_PAGE_SIZE;
+//            for (MAX_PAGE_SIZE = MAX_PAGE_SIZE_BASE; MAX_PAGE_SIZE <= MAX_PAGE_SIZE_BASE * 10; MAX_PAGE_SIZE += MAX_PAGE_SIZE_BASE) {
+//            for (missingRate = 0.00; missingRate < 0.095; missingRate += 0.01) {
+                MAX_PAGE_NUM = MAX_TS_SIZE / MAX_PAGE_SIZE;
+
+                Analysis analysis = LoadData.loadTimeSeriesData(INPUT_DIR + dataset, dataSize);
+                double[] ts = analysis.get_ts();
+                LoadData.addNan(ts, missingRate, 1);
+//                LoadData.addError(ts, errorRate, errorRange);
+
+                thres = calThreshold(ts);
+                zeta = thres;
+                epsilon = thres;
+
+                for (String method : methodList) {
+                    System.out.println(dataSize + " " + method);
+                    // method
+                    switch (method) {
+                        case "OneShotSTL":
+                            Algorithm.OneShotSTLModel(period, initPeriodNum, shiftWindow, analysis);
+                            break;
+                        case "WindowSTL":
+                            Algorithm.WindowSTLModel(period, initPeriodNum, slidingWindow, analysis);
+                            break;
+                        case "WindowRobustSTL":
+                            Algorithm.WindowRobustSTLModel(period, initPeriodNum, slidingWindow, analysis);
+                            break;
+                        case "OnlineSTL":
+                            Algorithm.OnlineSTLModel(period, initPeriodNum, analysis);
+                            break;
+                        case "RobustSTL":
+                            Algorithm.RobustSTLModel(period, analysis);
+                            break;
+                        case "OneRoundSTL":
+                            Algorithm.OneRoundSTLModel(period, initPeriodNum, 1e-8, 1e-8, 1.0, analysis);
+                            break;
+                        case "FastRobustSTL":
+                            Algorithm.FastRobustSTLModel(period, analysis);
+                            break;
+                        case "STL":
+                            Algorithm.STLModel(period, analysis);
+                            break;
+                        case "TSDBSTL_Flush":
+                            Algorithm.TSDBSTLModel(period, epsilon, zeta, lambda, analysis, MAX_TS_SIZE, MAX_PAGE_SIZE, MAX_PAGE_NUM, "flush");
+                            break;
+                        case "TSDBSTL_Query":
+                            Algorithm.TSDBSTLModel(period, epsilon, zeta, lambda, analysis, MAX_TS_SIZE, MAX_PAGE_SIZE, MAX_PAGE_NUM, "query");
+                            break;
+                        default:
+                            System.out.println("!!!Wrong!!!");
+                    }
+//                System.out.println("time_cost: " + 10e-9 * analysis.get_time_cost());
+                    if (recordType.equals("flush"))
+                        recordFlush(analysis.get_time_cost() + ",");
+                    else
+                        recordQuery(analysis.get_time_cost() + ",");
+                }
+                if (recordType.equals("flush"))
+                    recordFlush("\n");
+                else
+                    recordQuery("\n");
+            }
+        }
     }
 }
