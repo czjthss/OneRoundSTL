@@ -1,4 +1,4 @@
-# TSDB-STL
+# OneRoundSTL
 
 Seasonal-Trend Decomposition in Time Series Databases
 
