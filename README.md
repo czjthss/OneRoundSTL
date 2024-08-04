@@ -1,6 +1,6 @@
 # OneRoundSTL
 
-Seasonal-Trend Decomposition in Time Series Databases
+OneRoundSTL: In-Database Seasonal-Trend Decomposition
 
 - `code/` includes the codes for experiments
 - `data/` includes the datasets for experiments
