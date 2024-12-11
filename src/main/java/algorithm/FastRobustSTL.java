@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Map;
 
 public class FastRobustSTL {
-    public final String FILE_DIR = "/Users/chenzijie/Documents/GitHub/std-benchmark/src/main/java/algorithm/FastRobustSTL/";
+    public final String FILE_DIR = "/Users/chenzijie/Documents/GitHub/std-benchmark/src/main/java/algorithm/FastRobustSTLUtils/";
 
     public Map<String, ArrayList<Double>> decompose(List<Double> ts, int period) throws Exception {
         ArrayList<Double> trend = new ArrayList<>();

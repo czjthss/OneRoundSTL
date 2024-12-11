@@ -163,6 +163,34 @@ public class Algorithm {
         analysis.set_residual(components[2]);
     }
 
+    public static void BacktrackSTLModel(int period, Analysis analysis) throws Exception {
+        BacktrackSTL stl = new BacktrackSTL();
+
+        long start = System.nanoTime();
+        // decompose
+        double[][] components = stl.decompose(analysis.get_ts(), period);
+
+        // record
+        analysis.set_time_cost(System.nanoTime() - start);
+        analysis.set_trend(components[0]);
+        analysis.set_seasonal(components[1]);
+        analysis.set_residual(components[2]);
+    }
+
+    public static void STDRModel(int period, Analysis analysis) throws Exception {
+        STDR stdr = new STDR();
+
+        long start = System.nanoTime();
+        // decompose
+        double[][] components = stdr.decompose(analysis.get_ts(), period);
+
+        // record
+        analysis.set_time_cost((System.nanoTime() - start) * 3);
+        analysis.set_trend(components[0]);
+        analysis.set_seasonal(components[1]);
+        analysis.set_residual(components[2]);
+    }
+
     public static void OneRoundSTLModel(int period, int initPeriodNum, double epsilon, double tau, double lambda, Analysis analysis) throws Exception {
         OneRoundSTL stl = new OneRoundSTL();
 
@@ -177,11 +205,26 @@ public class Algorithm {
         analysis.set_residual(components[2]);
     }
 
-    public static void TSDBSTLModel(int period, double epsilon, double zeta, double lambda, Analysis analysis, int MAX_TS_SIZE, int MAX_PAGE_SIZE, int MAX_PAGE_NUM, String type) throws Exception {
-        TSDBSTLModel(period, epsilon, zeta, lambda, analysis, MAX_TS_SIZE, MAX_PAGE_SIZE, MAX_PAGE_NUM, analysis.get_ts().length, type);
+    public static void CleanSTLModel(int period, Analysis analysis, double k, int max_iter, int choice) throws Exception {
+        CleanSTL cleanSTL = new CleanSTL();
+
+        long start = System.nanoTime();
+
+        // decompose
+        double[][] components = cleanSTL.decompose(analysis.get_ts(), period, k, max_iter, choice);
+
+        // record
+        analysis.set_time_cost(System.nanoTime() - start);
+        analysis.set_trend(components[0]);
+        analysis.set_seasonal(components[1]);
+        analysis.set_residual(components[2]);
     }
 
-    public static void TSDBSTLModel(int period, double epsilon, double zeta, double lambda, Analysis analysis, int MAX_TS_SIZE, int MAX_PAGE_SIZE, int MAX_PAGE_NUM, int querySize, String type) throws Exception {
+    public static void TSDB_OneRoundSTLModel(int period, double epsilon, double zeta, double lambda, Analysis analysis, int MAX_TS_SIZE, int MAX_PAGE_SIZE, int MAX_PAGE_NUM, String type) throws Exception {
+        TSDB_OneRoundSTLModel(period, epsilon, zeta, lambda, analysis, MAX_TS_SIZE, MAX_PAGE_SIZE, MAX_PAGE_NUM, analysis.get_ts().length, type);
+    }
+
+    public static void TSDB_OneRoundSTLModel(int period, double epsilon, double zeta, double lambda, Analysis analysis, int MAX_TS_SIZE, int MAX_PAGE_SIZE, int MAX_PAGE_NUM, int querySize, String type) throws Exception {
         // Check if the time series size exceeds the pre-defined limits.
         if (analysis.get_ts().length > MAX_PAGE_NUM * MAX_PAGE_SIZE) {
             throw new Exception("ts exceeds the limit size.");
@@ -200,7 +243,7 @@ public class Algorithm {
         }
 
         LDLT ldlt = new LDLT(MAX_TS_SIZE, epsilon, lambda, 1.0);
-        TSDBSTL_Flush tsdbstlFlush = new TSDBSTL_Flush(period, ldlt);
+        OneRoundSTL_Flush tsdbstlFlush = new OneRoundSTL_Flush(period, ldlt);
 
         long flushStart = System.nanoTime();
         for (int pageIdx = 0; pageIdx < ts_pages.length; ++pageIdx) {
@@ -217,7 +260,7 @@ public class Algorithm {
         TSDBSTL_Concatenation tsdbstlConcatenation = new TSDBSTL_Concatenation(TSDB, period, tsdbstlFlush.getV(), ldlt);
         tsdbstlConcatenation.concat(zeta);
 
-        TSDBSTL_Query tsdbstlQuery = new TSDBSTL_Query(TSDB, period, tsdbstlFlush.getV(), ldlt);
+        OneRoundSTL_Query tsdbstlQuery = new OneRoundSTL_Query(TSDB, period, tsdbstlFlush.getV(), ldlt);
         tsdbstlQuery.decompose(0, querySize, zeta);
         long queryEnd = System.nanoTime();
 

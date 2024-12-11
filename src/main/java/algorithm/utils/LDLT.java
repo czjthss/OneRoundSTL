@@ -120,6 +120,8 @@ public class LDLT {
                     }
 //                    System.out.println(convergenceSum);
                     if (convergenceSum <= epsilon) {
+                        System.out.println(i);
+                        System.exit(0);
                         converge = true;
                         converge_size = (i + 1) / 2;
                         for (int j = i + 1; j < i + 5; j++) {

@@ -13,6 +13,14 @@ public class Utils {
         return array;
     }
 
+    public static boolean[] convertBooleanListToArray(List<Boolean> list) {
+        boolean[] array = new boolean[list.size()];
+        for (int i = 0; i < list.size(); i++) {
+            array[i] = list.get(i); // Unboxing the Double to double
+        }
+        return array;
+    }
+
     public static List<Double> convertArrayToList(double[] array) {
         List<Double> list = new ArrayList<>();
         for (double value : array) {
